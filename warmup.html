@@ -1,0 +1,99 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CodeSpitz71-1</title>
+</head>
+<body>
+<section id="data"></section>
+<script>
+const Info = class{
+  constructor(json){
+    const {title, header } = json;
+    const items = json.items.filter(v=>v.length === header.length);
+    if(typeof title != 'string' || !title) throw "invalid title";
+    if(!Array.isArray(header) || !header.length) throw "invalid header";
+    if(!Array.isArray(items) || !items.length) throw "invalid items";
+    items.forEach((v, idx)=>{
+      if(!Array.isArray(v) || v.length != header.length) throw "invalid items:" + idx + ":" +v + ":" + v.length + ":" + header.length;
+    });
+    this._private = {title, header, items};
+  }
+  get title(){return this._private.title;}
+  get header(){return this._private.header;}
+  get items(){return this._private.items;}
+}
+const Data = class{
+  async getData(){
+    const json = await this._getData();
+    return new Info(json);
+  }
+  async _getData(){
+    throw "_getData must be overriden";
+  }
+};
+
+const JsonData = class extends Data{
+  constructor(data){
+    super();
+    this._data = data;
+  }
+  async _getData(){
+    let json;
+    if(typeof this._data == 'string'){
+      const response = await fetch(this._data);
+      return await response.json();
+    }else return this._data;
+  }
+};
+
+const Renderer = class{
+  async render(data){
+    if(!(data instanceof Data)) throw "invalid data type";
+    this._info = await data.getData();
+    this._render(this._info);
+  }
+  _render(){
+    throw "_render must overried";
+  }
+}
+const TableRenderer = class extends Renderer{
+  constructor(parent){
+    if(typeof parent != 'string' || !parent) throw "invalid param";
+    super();
+    this._parent = parent;
+  }
+  _render(info){
+    const parent = document.querySelector(this._parent);
+    if(!parent) throw "invaild parent";
+    parent.innerHTML = "";
+
+    const [table, caption] = "table,caption".split(",").map(v=>document.createElement(v));
+    caption.innerHTML = info.title;
+    table.appendChild(caption);
+
+    table.appendChild(
+      info.header.reduce(
+        (thead, data)=>(thead.appendChild(document.createElement("th")).innerHTML = data, thead),
+        document.createElement("thead"))
+    );
+
+    parent.appendChild(
+      info.items.reduce(
+        (table, row)=>(table.appendChild(
+          row.reduce(
+            (tr, data)=>(tr.appendChild(document.createElement("td")).innerHTML = data, tr),
+            document.createElement("tr"))
+        ), table),
+        table)
+    );
+  }
+}
+
+const data = new JsonData("https://gist.githubusercontent.com/hikaMaeng/717dc66225e40a8fe8d1c40366d40957/raw/447d44b800ed98817b0d29681be90aa1ec36e4ac/71_1.json");
+
+const renderer = new TableRenderer("#data");
+renderer.render(data);
+</script>
+</body>
+</html>
